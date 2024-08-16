@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <title>防災マップ</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="stylesheet" href="/static/css/index.css">
+        <link rel="stylesheet" href="/static/css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+        <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    </head>
+    <body>
+        <p id="location"></p>
+        <div id="result"></div>
+
+        <div id="map-content">
+            <div id="map">
+                <div id="headingIcon"></div>
+            </div>
+            <button type="button" id="positionButton">
+                <img id="positionButtonImage" src="/static/images/now-icon.png" alt="現在地ボタン">
+            </button>
+            <button type="button" id="trackingButton">現在地を追従するボタン</button>
+
+            <!-- 新しいスクレイピングボタンを追加 -->
+            <button type="button" id="scrapeButton">データをスクレイピング</button>
+        </div>
+
+        <script src="/static/js/leaflet.rotatedMarker.js"></script>
+        <script src="/static/js/L.Control.Layers.Tree.js"></script>
+        <script type="module" src="/static/js/main2.js"></script>
+
+        <!-- 新しいJavaScriptを追加 -->
+        <script>
+
+            let markers = [];
+
+            document.getElementById("scrapeButton").addEventListener("click", function() {
+                var latitude = 35.6895;
+                var longitude = 139.6917;
+                scrapeData(latitude,longitude)
+            });
+
+            async function scrapeData(latitude, longitude) {
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({latitude: latitude, longitude: longitude})
+                });
+                const data = await response.json();
+                const resultDiv = document.getElementById('result');
+                resultDiv.innerHTML = '<h2>取得したデータ</h2>';
+
+                for (const [index, item] of data.elements.entries()) {
+                    const geoResponse = await fetch('/geocode', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({address: item.address})
+                    });
+                    const geoData = await geoResponse.json();
+
+                    resultDiv.innerHTML += `
+                        <p>${index + 1}. 名前: ${item.title}</p>
+                        <p>住所: ${item.address}</p>
+                        <p>緯度: ${geoData.latitude || '取得できませんでした'}</p>
+                        <p>経度: ${geoData.longitude || '取得できませんでした'}</p>
+                    `;
+                }
+                console.log(data);
+            } catch (error) {
+                console.error('データの取得に失敗しました:', error);
+                alert('サーバーからデータを取得できませんでした。');
+            }
+        }
+        </script>
+    </body>
+</html>
